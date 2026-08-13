@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "312141334151",
+    "project_id": "gen-lang-client-0071236726",
+    "storage_bucket": "gen-lang-client-0071236726.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:312141334151:android:8db43b73678e32bda45a22",
+        "android_client_info": {
+          "package_name": "com.example.nursewearconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuOwYw-d7MXXeMqHNhnVss5LnHAoKoyoo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

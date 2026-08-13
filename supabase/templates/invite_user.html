@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="background-color: #F8FAFC; padding: 40px 20px; color: #0F172A;">
+        <div style="max-width: 550px; margin: 0 auto; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(13, 148, 136, 0.05); border: 1px solid #E2E8F0;">
+            <!-- Brand Header -->
+            <div style="background-color: #0D9488; padding: 32px; text-align: center;">
+                <h1 style="color: #FFFFFF; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">NurseWear Connect</h1>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 40px; text-align: center;">
+                <h2 style="font-size: 24px; font-weight: 700; color: #0F172A; margin-top: 0; margin-bottom: 12px;">You've Been Invited!</h2>
+                <p style="font-size: 16px; line-height: 1.6; color: #64748B; margin-bottom: 32px;">
+                    You have been invited to join NurseWear Connect. Click the button below to accept your invitation and set up your account.
+                </p>
+
+                <!-- Action Button -->
+                <a href="{{ .ConfirmationURL }}" style="background-color: #0D9488; color: #FFFFFF; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);">
+                    Accept Invitation
+                </a>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #F1F5F9; padding: 24px; text-align: center;">
+                <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.5;">
+                    &copy; 2026 NurseWear Connect. Delivering Quality Healthcare Apparel.<br>
+                    This invitation was sent to {{ .Email }}.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,4130 @@
+﻿package com.example.nursewearconnect.ui.screens
+
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.core.*
+import androidx.compose.animation.*
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import java.util.Locale
+import com.example.nursewearconnect.model.Product
+import com.example.nursewearconnect.model.ProductColor
+import com.example.nursewearconnect.ui.theme.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import com.example.nursewearconnect.ui.components.ShimmerPlaceholder
+import com.example.nursewearconnect.ui.components.InventoryHealthCard
+import com.example.nursewearconnect.ui.viewmodel.HomeViewModel
+import com.example.nursewearconnect.utils.Constants
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    innerPadding: PaddingValues, 
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToMessages: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToCatalog: () -> Unit = {},
+    onNavigateToUserLogs: () -> Unit = {},
+    onNavigateToAdminUsers: () -> Unit = {},
+    onNavigateToAdminVendors: () -> Unit = {},
+    onNavigateToAdminInventory: () -> Unit = {},
+    onNavigateToAdminOrders: () -> Unit = {},
+    onNavigateToAdminMarketing: () -> Unit = {},
+    onNavigateToVendorMarketing: () -> Unit = {},
+    onNavigateToReports: () -> Unit = {},
+    onNavigateToVendorInventory: () -> Unit = {},
+    onNavigateToVendorOrders: () -> Unit = {},
+    onNavigateToVendorAnalytics: () -> Unit = {},
+    onNavigateToVendorCatalog: () -> Unit = {},
+    viewModel: HomeViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val userRole = uiState.userRole
+    val filteredNewArrivals by viewModel.filteredNewArrivals.collectAsState()
+    val filteredRecommendations by viewModel.filteredRecommendations.collectAsState()
+    val filteredLogs by viewModel.filteredLogs.collectAsState()
+    val isLoading = uiState.isLoading
+    
+    var showSizeQuiz by rememberSaveable { mutableStateOf(false) }
+
+    val messagingViewModel: com.example.nursewearconnect.ui.viewmodel.MessagingViewModel = viewModel(factory = com.example.nursewearconnect.ui.viewmodel.ViewModelFactory(androidx.compose.ui.platform.LocalContext.current.applicationContext as com.example.nursewearconnect.NurseWearApplication))
+    val unreadNotifs by messagingViewModel.unreadNotificationCount.collectAsState()
+    val convos by messagingViewModel.conversations.collectAsState()
+    val unreadMessages = remember(convos) { convos.sumOf { it.unread_count } }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Slate50)
+    ) {
+        // Decorative Background Gradients
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Brand100.copy(alpha = 0.4f), Color.Transparent)
+                    )
+                )
+        )
+
+        val pullToRefreshState = rememberPullToRefreshState()
+
+        PullToRefreshBox(
+            isRefreshing = isLoading,
+            onRefresh = { viewModel.loadHomeData(); messagingViewModel.refresh() },
+            state = pullToRefreshState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = innerPadding.calculateBottomPadding())
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Spacer(modifier = Modifier.statusBarsPadding())
+                HomeHeader(
+                    userRole = userRole,
+                    userName = uiState.userName,
+                    greeting = uiState.greeting,
+                    profilePicture = uiState.profilePicture,
+                    unreadNotificationsCount = unreadNotifs,
+                    unreadMessagesCount = unreadMessages,
+                    onNotificationsClick = onNavigateToNotifications,
+                    onMessagesClick = onNavigateToMessages,
+                    onProfileClick = onNavigateToProfile
+                )
+                
+                SearchBar(
+                    query = uiState.searchQuery,
+                    userRole = userRole,
+                    onQueryChange = { viewModel.onSearchQueryChanged(it) },
+                    onSearchAction = { onNavigateToCatalog() },
+                    onFilterClick = { onNavigateToCatalog() }
+                )
+                
+                if (userRole != "admin") {
+                    CategorySelector(
+                        categories = uiState.categories, 
+                        activeCat = uiState.activeCategory,
+                        onCategorySelected = { viewModel.onCategorySelected(it) }
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                
+                if (userRole == "vendor") {
+                    val commissionRate = uiState.commissionRate.takeIf { it > 0.0 } ?: 10.0
+                    val totalRevenue = uiState.vendorOrders.filter { it["status"] == "delivered" }
+                        .sumOf { (it["total_amount"] as? Number)?.toDouble() ?: 0.0 }
+                    val netEarnings = totalRevenue * (1 - (commissionRate / 100.0))
+                    val lowStockProducts = uiState.vendorProducts.filter { it.inStock && it.stockCount in 1..Constants.LOW_STOCK_THRESHOLD }
+                    val lowStockCount = lowStockProducts.size
+                    
+                    if (uiState.userStatus == "pending" || uiState.userStatus == "rejected") {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (uiState.userStatus == "pending") Color(0xFFFEF9C3) else Color(0xFFFEE2E2),
+                            border = BorderStroke(1.dp, if (uiState.userStatus == "pending") Color(0xFFFDE047) else Color(0xFFFECACA))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.userStatus == "pending") Icons.Default.Pending else Icons.Default.Block,
+                                    contentDescription = null,
+                                    tint = if (uiState.userStatus == "pending") Color(0xFF854D0E) else Color(0xFF991B1B)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = if (uiState.userStatus == "pending") "Onboarding Pending" else "Account Restricted",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = if (uiState.userStatus == "pending") Color(0xFF854D0E) else Color(0xFF991B1B)
+                                    )
+                                    Text(
+                                        text = if (uiState.userStatus == "pending") "We're reviewing your shop. Full access coming soon!" else "Your account has been restricted. Contact support.",
+                                        fontSize = 12.sp,
+                                        color = if (uiState.userStatus == "pending") Color(0xFFA16207) else Color(0xFFB91C1C)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    VendorStats(
+                        orderCount = uiState.vendorOrders.size,
+                        lowStockCount = lowStockCount,
+                        totalRevenue = netEarnings,
+                        onClick = onNavigateToVendorAnalytics
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    if (lowStockProducts.isNotEmpty()) {
+                        LowStockSection(
+                            products = lowStockProducts,
+                            onProductClick = { viewModel.setSelectedProduct(it) },
+                            onManageInventory = onNavigateToVendorInventory
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    HeroBanner(
+                        featuredProduct = uiState.featuredProduct,
+                        banners = uiState.banners,
+                        userRole = uiState.userRole,
+                        onShopNowClick = { banner ->
+                            // Vendors see preview only, no navigation
+                        },
+                        onActionLinkClick = { link ->
+                            // Handle category or other navigation links
+                            if (link.startsWith("category:")) {
+                                val category = link.removePrefix("category:")
+                                viewModel.onCategorySelected(category)
+                                onNavigateToCatalog()
+                            }
+                        },
+                        onBannerImpression = { viewModel.trackBannerImpression(it) },
+                        onBannerClick = { viewModel.trackBannerClick(it) }
+                    )
+                } else if (userRole == "admin") {
+                    val allUsers by viewModel.allUsers.collectAsState()
+                    val totalRevenue = uiState.allOrders.filter { it["status"] == "delivered" }.sumOf { (it["total_amount"] as? Number)?.toDouble() ?: 0.0 }
+                    
+                    LaunchedEffect(Unit) {
+                        viewModel.loadAdminMarketingData()
+                    }
+
+                    AdminStats(
+                        userCount = allUsers.size,
+                        pendingVendors = uiState.pendingVendors.size,
+                        totalRevenue = totalRevenue,
+                        onInventoryClick = { onNavigateToAdminInventory() }
+                    )
+                } else {
+                    HeroBanner(
+                        featuredProduct = uiState.featuredProduct,
+                        banners = uiState.banners,
+                        userRole = uiState.userRole,
+                        onShopNowClick = { banner ->
+                            val productId = banner?.get("product_id") as? String
+                            if (productId != null) {
+                                // Navigate to specific product if linked
+                                viewModel.loadProductById(productId) { product ->
+                                    if (product != null) {
+                                        viewModel.setSelectedProduct(product)
+                                    } else {
+                                        onNavigateToCatalog()
+                                    }
+                                }
+                            } else {
+                                onNavigateToCatalog()
+                            }
+                        },
+                        onActionLinkClick = { link ->
+                            if (link.startsWith("category:")) {
+                                val category = link.removePrefix("category:")
+                                viewModel.onCategorySelected(category)
+                                onNavigateToCatalog()
+                            }
+                        },
+                        onBannerImpression = { viewModel.trackBannerImpression(it) },
+                        onBannerClick = { viewModel.trackBannerClick(it) }
+                    )
+                    
+                    SizeFinderCard(onStartQuiz = { showSizeQuiz = true })
+                
+                if (showSizeQuiz) {
+                    SizeQuizBottomSheet(
+                        onDismiss = { showSizeQuiz = false },
+                        onComplete = { size ->
+                            if (uiState.selectedProduct != null) {
+                                viewModel.setSelectedSize(size)
+                            } else {
+                                viewModel.applySizeQuizResult(size)
+                                onNavigateToCatalog()
+                            }
+                            showSizeQuiz = false
+                        },
+                        gender = uiState.selectedProduct?.gender ?: "Unisex"
+                    )
+                }
+                }
+                
+
+                // New Arrivals Section
+                if ((userRole == "student" || userRole == "professional") && filteredNewArrivals.isNotEmpty()) {
+                    SectionHeader(
+                        title = "New Arrivals",
+                        subtitle = "Fresh styles for your shift",
+                        onSeeAllClick = { onNavigateToCatalog() }
+                    )
+                    NewArrivalsRow(
+                        products = filteredNewArrivals,
+                        onProductClick = { viewModel.setSelectedProduct(it) },
+                        onAddToCart = { viewModel.addToCart(it) }
+                    )
+                }
+                
+                QuickActions(
+                    userRole = userRole,
+                    onQuickReorderClick = { 
+                        if (userRole == "vendor") onNavigateToMessages() else viewModel.setShowQuickReorder(true) 
+                    },
+                    onFavoritesClick = { 
+                        if (userRole == "vendor") onNavigateToVendorInventory() else viewModel.setShowFavorites(true) 
+                    },
+                    onVendorAnalyticsClick = onNavigateToVendorAnalytics,
+                    onUserLogsClick = onNavigateToUserLogs,
+                    onAdminUsersClick = onNavigateToAdminUsers,
+                    onAdminVendorsClick = onNavigateToAdminVendors,
+                    onAdminMarketingClick = if (userRole == "admin") onNavigateToAdminMarketing else onNavigateToVendorMarketing,
+                    onReportsClick = onNavigateToReports,
+                    onVendorCatalogClick = onNavigateToVendorCatalog
+                )
+                
+        if (userRole == "admin") {
+                    SectionHeader(
+                        title = "Pending Tasks",
+                        subtitle = "High-priority approvals and stock alerts",
+                        onSeeAllClick = { onNavigateToAdminVendors() }
+                    )
+                    
+                    AdminPendingTasks(
+                        pendingVendors = uiState.pendingVendors,
+                        lowStockProducts = uiState.products.filter { it.stockCount > 0 && it.stockCount <= Constants.LOW_STOCK_THRESHOLD },
+                        pendingBanners = uiState.banners.filter { it["status"] == "pending" },
+                        onApproveVendor = { viewModel.approveVendor(it) },
+                        onApproveBanner = { viewModel.approveBanner(it) },
+                        onNavigateToInventory = onNavigateToAdminInventory
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    SectionHeader(
+                        title = "Marketing & Catalog Banners",
+                        subtitle = "Review and approve promotional banners",
+                        onSeeAllClick = { onNavigateToAdminMarketing() }
+                    )
+                    
+                    MarketingOverview(
+                        coupons = uiState.coupons,
+                        banners = uiState.banners,
+                        onCouponClick = onNavigateToAdminMarketing,
+                        onBannerClick = onNavigateToAdminMarketing
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+                }
+
+                SectionHeader(
+                    title = when(userRole) {
+                        "vendor" -> "Your Recent Orders"
+                        "admin" -> "Recent System Activity"
+                        else -> "Recommended for You"
+                    },
+                    subtitle = when(userRole) {
+                        "vendor" -> "Track your sales performance"
+                        "admin" -> "Overview of latest registrations and orders"
+                        else -> "Based on your sizing profile"
+                    },
+                    onSeeAllClick = { 
+                        when(userRole) {
+                            "admin" -> onNavigateToUserLogs()
+                            "vendor" -> onNavigateToVendorOrders()
+                            else -> onNavigateToCatalog()
+                        }
+                    }
+                )
+                
+                if (userRole == "admin") {
+                    AdminActivityList(
+                        logs = filteredLogs,
+                        onSeeAllOrders = onNavigateToAdminOrders
+                    )
+                } else if (userRole == "vendor") {
+                    VendorRecentOrdersList(
+                        orders = uiState.vendorOrders,
+                        viewModel = viewModel,
+                        onNavigateToOrders = onNavigateToVendorOrders
+                    )
+                } else {
+                    ProductGrid(
+                        products = filteredRecommendations,
+                        favoriteProductIds = uiState.favoriteProductIds,
+                        onFavoriteToggle = { viewModel.toggleFavorite(it.id) },
+                        onAddToCart = { viewModel.addToCart(it) },
+                        onProductClick = { viewModel.setSelectedProduct(it) },
+                        isLoading = isLoading
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+
+        // Favorites Bottom Sheet
+        if (uiState.showFavorites) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.setShowFavorites(false) },
+                containerColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Text("Your Favorites", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    Spacer(Modifier.height(16.dp))
+                    
+                    val favoriteProducts = uiState.products.filter { uiState.favoriteProductIds.contains(it.id) }
+                    favoriteProducts.forEach { product ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = Slate50) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (product.images.isNotEmpty()) {
+                                        AsyncImage(
+                                            model = product.images.first(),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.Inventory, contentDescription = null, tint = Slate300)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(product.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text("KSh ${product.priceKes}", fontSize = 12.sp, color = Slate500)
+                            }
+                            IconButton(onClick = { viewModel.toggleFavorite(product.id) }) {
+                                Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFF43F5E))
+                            }
+                        }
+                        HorizontalDivider(color = Slate100)
+                    }
+                    Spacer(Modifier.height(32.dp))
+                }
+            }
+        }
+
+        // Product Detail Bottom Sheet
+        if (uiState.selectedProduct != null) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.setSelectedProduct(null) },
+                containerColor = Color.White,
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                ProductDetailContent(
+                    product = uiState.selectedProduct!!,
+                    isFavorite = uiState.favoriteProductIds.contains(uiState.selectedProduct!!.id),
+                    onFavoriteToggle = { viewModel.toggleFavorite(uiState.selectedProduct!!.id) },
+                    selectedSize = uiState.selectedSize,
+                    onSizeSelected = { viewModel.setSelectedSize(it) },
+                    selectedColor = uiState.selectedColor,
+                    onColorSelected = { viewModel.setSelectedColor(it) },
+                    onAddToCart = { 
+                        if (viewModel.addToCart(uiState.selectedProduct!!)) {
+                            viewModel.setSelectedProduct(null)
+                        }
+                    },
+                    error = uiState.error,
+                    reviews = uiState.productReviews,
+                    isReviewsLoading = uiState.isReviewsLoading,
+                    onSubmitReview = { rating, comment ->
+                        viewModel.submitReview(uiState.selectedProduct!!.id, rating, comment)
+                    },
+                    isAdmin = userRole == "admin",
+                    onEditProduct = { product ->
+                        // Implementation for navigating to edit
+                        viewModel.setSelectedProduct(null)
+                        onNavigateToAdminInventory()
+                    },
+                    onOpenSizeFinder = { showSizeQuiz = true },
+                    onJoinWaitlist = { viewModel.joinProductWaitlist(uiState.selectedProduct!!.id) }
+                )
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductDetailContent(
+    product: Product,
+    isFavorite: Boolean,
+    onFavoriteToggle: () -> Unit,
+    selectedSize: String?,
+    onSizeSelected: (String) -> Unit,
+    selectedColor: ProductColor?,
+    onColorSelected: (ProductColor) -> Unit,
+    onAddToCart: () -> Unit,
+    error: String? = null,
+    reviews: List<Map<String, Any>> = emptyList(),
+    isReviewsLoading: Boolean = false,
+    isEligibleToReview: Boolean = false,
+    onSubmitReview: (Int, String) -> Unit = { _, _ -> },
+    isAdmin: Boolean = false,
+    onEditProduct: (Product) -> Unit = {},
+    onOpenSizeFinder: () -> Unit = {},
+    onJoinWaitlist: () -> Unit = {}
+) {
+    var showReviewDialog by remember { mutableStateOf(false) }
+    var rating by remember { mutableStateOf(5) }
+    var comment by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        // Image Header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .background(Slate50, RoundedCornerShape(24.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (product.images.isNotEmpty()) {
+                AsyncImage(
+                    model = product.images.first(),
+                    contentDescription = product.name,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(Brand50, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when(product.category) {
+                            "Equipment" -> Icons.Default.MedicalServices
+                            "Theatre Shoes" -> Icons.Default.IceSkating
+                            else -> Icons.Default.Checkroom
+                        },
+                        contentDescription = null,
+                        tint = Brand600,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+            
+            IconButton(
+                onClick = onFavoriteToggle,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
+                    .background(Color.White.copy(alpha = 0.8f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) Color(0xFFF43F5E) else Slate300
+                )
+            }
+
+            if (isAdmin) {
+                IconButton(
+                    onClick = { onEditProduct(product) },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(top = 16.dp, start = 16.dp)
+                        .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Product",
+                        tint = Brand600
+                    )
+                }
+            }
+
+            // 360 View Placeholder
+            Surface(
+                onClick = { /* Future: Open 360 viewer */ },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Black.copy(alpha = 0.6f),
+                contentColor = Color.White
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("360Â° View", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Info
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "${product.gender} â€¢ ${product.category}".uppercase(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Brand600,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    product.name,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900,
+                    lineHeight = 30.sp
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "KSh ${product.priceKes}",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Brand600
+                )
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color(0xFFD1FAE5),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text(
+                        "PROFESSIONAL: KSh ${(product.priceKes * 0.9).toInt()}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF065F46),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(vertical = 12.dp)
+        ) {
+            Icon(Icons.Default.Star, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+            Text(
+                " ${product.rating} ",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Slate900
+            )
+            Text(
+                "(${product.reviewsCount} reviews)",
+                fontSize = 14.sp,
+                color = Slate500
+            )
+        }
+
+        if (!product.vendorName.isNullOrEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .background(Slate50, RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(Brand100, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Store, null, tint = Brand600, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        "Sold by",
+                        fontSize = 10.sp,
+                        color = Slate500,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        product.vendorName ?: "",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                }
+                if (product.vendorRating != null) {
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(14.dp))
+                    Text(
+                        " ${product.vendorRating}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate700
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider(color = Slate100, modifier = Modifier.padding(vertical = 8.dp))
+
+        // Size Selection
+        if (product.availableSizes.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Select Size", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                TextButton(
+                    onClick = onOpenSizeFinder,
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.Default.Straighten, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Size Finder", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Brand600)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                product.availableSizes.forEach { size ->
+                    val isSelected = size == selectedSize
+                    Box(
+                        modifier = Modifier
+                            .size(width = 56.dp, height = 40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) Brand600 else Slate50)
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) Brand600 else Slate200,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onSizeSelected(size) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = size,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else Slate700
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+
+        // Color Selection
+        if (product.availableColors.isNotEmpty()) {
+            Text("Select Color", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                product.availableColors.forEach { color ->
+                    val isSelected = color == selectedColor
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { onColorSelected(color) }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(color.hex))
+                                .border(
+                                    width = if (isSelected) 3.dp else 1.dp,
+                                    color = if (isSelected) Brand600 else Slate200,
+                                    shape = CircleShape
+                                )
+                                .padding(2.dp)
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = if (color.name == "White") Slate900 else Color.White,
+                                    modifier = Modifier.size(16.dp).align(Alignment.Center)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            color.name,
+                            fontSize = 12.sp,
+                            color = if (isSelected) Brand600 else Slate500,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+
+        // Description Section
+        Text("Description", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            product.description,
+            fontSize = 14.sp,
+            color = Slate600,
+            lineHeight = 22.sp
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Material & Features
+        Text("Material", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.CheckCircle, null, tint = Brand500, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(product.material, fontSize = 14.sp, color = Slate600)
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Text("Key Features", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+        Spacer(Modifier.height(8.dp))
+        product.features.forEach { feature ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Box(modifier = Modifier.size(6.dp).background(Brand600, CircleShape))
+                Spacer(Modifier.width(12.dp))
+                Text(feature, fontSize = 14.sp, color = Slate600)
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
+
+        // Error Message
+        if (error != null) {
+            Surface(
+                color = Color(0xFFFEF2F2),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ErrorOutline,
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = error,
+                        color = Color(0xFF991B1B),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Add to Cart / Waitlist Button
+        if (product.inStock && product.stockCount > 0) {
+            Button(
+                onClick = onAddToCart,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600)
+            ) {
+                Icon(Icons.Default.ShoppingCart, null)
+                Spacer(Modifier.width(12.dp))
+                Text("Add to Cart", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Column {
+                Surface(
+                    color = Color(0xFFFFF7ED),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, null, tint = Color(0xFFC2410C), modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "This item is currently out of stock.",
+                            color = Color(0xFF9A3412),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                
+                Button(
+                    onClick = onJoinWaitlist,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Slate900,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(Icons.Default.NotificationsActive, null)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Notify Me When Available", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        
+        Spacer(Modifier.height(32.dp))
+
+        // Reviews Section
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Customer Reviews", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
+            if (isEligibleToReview) {
+                TextButton(onClick = { showReviewDialog = true }) {
+                    Text("Write Review", color = Brand600, fontWeight = FontWeight.Bold)
+                }
+            } else if (!isAdmin) {
+                Surface(
+                    color = Slate50,
+                    shape = RoundedCornerShape(8.dp),
+                ) {
+                    Text(
+                        "Delivered items only",
+                        fontSize = 11.sp,
+                        color = Slate500,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+
+        if (isReviewsLoading) {
+            Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Brand600)
+            }
+        } else if (reviews.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp)
+                    .background(Slate50, RoundedCornerShape(16.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.RateReview, null, tint = Slate300, modifier = Modifier.size(48.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "No reviews yet",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                    Text(
+                        "Be the first to review this product!",
+                        fontSize = 14.sp,
+                        color = Slate500,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // Rating Summary
+            val ratingCounts = IntArray(5)
+            reviews.forEach {
+                val r = (it["rating"] as? Number)?.toInt() ?: 5
+                if (r in 1..5) ratingCounts[r - 1]++
+            }
+            val totalReviews = reviews.size
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Slate50.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = "%.1f".format(product.rating),
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Slate900
+                        )
+                        Row {
+                            repeat(5) { index ->
+                                Icon(
+                                    Icons.Default.Star,
+                                    null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = if (index < product.rating.toInt()) Color(0xFFF59E0B) else Slate200
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text("${product.reviewsCount} reviews", fontSize = 10.sp, color = Slate500)
+                    }
+                    
+                    VerticalDivider(modifier = Modifier.height(80.dp).padding(horizontal = 16.dp), color = Slate200)
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        (5 downTo 1).forEach { star ->
+                            val count = ratingCounts[star - 1]
+                            val progress = if (totalReviews > 0) count.toFloat() / totalReviews else 0f
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 1.dp)
+                            ) {
+                                Text(star.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate700, modifier = Modifier.width(10.dp))
+                                Spacer(Modifier.width(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(6.dp)
+                                        .clip(CircleShape),
+                                    color = Color(0xFFF59E0B),
+                                    trackColor = Slate200,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(count.toString(), fontSize = 10.sp, color = Slate500, modifier = Modifier.width(20.dp), textAlign = TextAlign.End)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            reviews.forEach { review ->
+                val customerName = (review["profiles"] as? Map<*, *>)?.get("full_name")?.toString() ?: "Customer"
+                val reviewRating = (review["rating"] as? Number)?.toInt() ?: 5
+                val reviewComment = review["comment"]?.toString() ?: ""
+                val createdAt = review["created_at"]?.toString()?.split("T")?.firstOrNull() ?: "Recently"
+                
+                Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Brand100, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    customerName.take(1).uppercase(),
+                                    fontWeight = FontWeight.Bold,
+                                    color = Brand700,
+                                    fontSize = 14.sp
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(customerName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Slate900)
+                                Row {
+                                    repeat(5) { index ->
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(10.dp),
+                                            tint = if (index < reviewRating) Color(0xFFF59E0B) else Slate200
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Text(createdAt, fontSize = 12.sp, color = Slate400)
+                    }
+                    if (reviewComment.isNotEmpty()) {
+                        Text(
+                            reviewComment,
+                            fontSize = 14.sp,
+                            color = Slate600,
+                            modifier = Modifier.padding(top = 8.dp, start = 48.dp),
+                            lineHeight = 20.sp
+                        )
+                    }
+                    HorizontalDivider(color = Slate50, modifier = Modifier.padding(top = 16.dp))
+                }
+            }
+        }
+
+        Spacer(Modifier.height(40.dp))
+    }
+
+    if (showReviewDialog) {
+        AlertDialog(
+            onDismissRequest = { showReviewDialog = false },
+            title = { Text("Write a Review") },
+            text = {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        repeat(5) { index ->
+                            IconButton(onClick = { rating = index + 1 }) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = if (index < rating) Color(0xFFF59E0B) else Slate200,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = comment,
+                        onValueChange = { comment = it },
+                        label = { Text("Your comment (optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onSubmitReview(rating, comment)
+                        showReviewDialog = false
+                        comment = ""
+                        rating = 5
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand600)
+                ) {
+                    Text("Submit")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReviewDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeHeader(
+    userRole: String,
+    userName: String,
+    greeting: String,
+    profilePicture: String? = null,
+    unreadNotificationsCount: Int,
+    unreadMessagesCount: Int,
+    onNotificationsClick: () -> Unit,
+    onMessagesClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = greeting,
+                fontSize = 14.sp,
+                color = Slate500,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = when(userRole) {
+                    "vendor" -> "$userName (Vendor)"
+                    "admin" -> "$userName (Admin)"
+                    "professional" -> "$userName (Pro)"
+                    else -> userName
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Slate900
+            )
+        }
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HeaderIconButton(
+                icon = Icons.Outlined.Notifications,
+                badgeCount = unreadNotificationsCount,
+                onClick = onNotificationsClick
+            )
+            HeaderIconButton(
+                icon = Icons.Default.ChatBubbleOutline,
+                badgeCount = unreadMessagesCount,
+                onClick = onMessagesClick
+            )
+            Surface(
+                onClick = onProfileClick,
+                modifier = Modifier.size(46.dp), // Increased size to match HeaderIconButton (46.dp)
+                shape = CircleShape,
+                color = Brand100,
+                border = BorderStroke(2.dp, Color.White),
+                shadowElevation = 2.dp // Added shadow to match HeaderIconButton
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (!profilePicture.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = profilePicture,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = if (userName.isNotEmpty()) userName.take(1).uppercase() else "U",
+                            color = Brand600,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp // Slightly larger font for larger circle
+                        )
+                    }
+                }
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HeaderIconButton(
+    icon: ImageVector,
+    badgeCount: Int,
+    onClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "badge_pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Box(modifier = Modifier.padding(top = 2.dp, end = 4.dp)) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .size(46.dp)
+                .then(if (badgeCount > 0) Modifier.graphicsLayer(scaleX = scale, scaleY = scale) else Modifier),
+            shape = CircleShape,
+            color = Color.White,
+            border = BorderStroke(1.2.dp, if (badgeCount > 0) Brand500.copy(alpha = 0.5f) else Slate100),
+            shadowElevation = if (badgeCount > 0) 4.dp else 2.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp),
+                    tint = if (badgeCount > 0) Brand600 else Slate700
+                )
+            }
+        }
+        
+        if (badgeCount > 0) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-2).dp)
+                    .sizeIn(minWidth = 18.dp, minHeight = 18.dp),
+                color = Color(0xFFEF4444), 
+                shape = CircleShape,
+                border = BorderStroke(1.5.dp, Color.White)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 10.sp
+                    )
+                }
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchBar(
+    query: String,
+    userRole: String = "student",
+    recentSearches: List<String> = emptyList(),
+    onQueryChange: (String) -> Unit,
+    onSearchAction: () -> Unit = {},
+    onFilterClick: () -> Unit = {},
+    onRecentSearchClick: (String) -> Unit = {}
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val animatedHeight by animateDpAsState(targetValue = if (isFocused) 56.dp else 48.dp, label = "search_height")
+    
+    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = animatedHeight, max = animatedHeight),
+            interactionSource = interactionSource,
+            placeholder = {
+                val hint = when(userRole) {
+                    "admin" -> "Search users, orders, logs..."
+                    "vendor" -> "Search your products, orders..."
+                    else -> "Search scrubs, shoes, equipment..."
+                }
+                Text(hint, fontSize = 14.sp, color = Slate400)
+            },
+            leadingIcon = { 
+                Icon(
+                    imageVector = Icons.Default.Search, 
+                    contentDescription = null, 
+                    modifier = Modifier.size(20.dp),
+                    tint = Slate400
+                ) 
+            },
+            trailingIcon = {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 4.dp)) {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, "Clear", modifier = Modifier.size(18.dp), tint = Slate400)
+                        }
+                    }
+                    IconButton(onClick = onFilterClick, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.FilterList, "Filter", modifier = Modifier.size(20.dp), tint = Brand600)
+                    }
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color.White,
+                focusedContainerColor = Color.White,
+                unfocusedBorderColor = Slate100,
+                focusedBorderColor = Brand600,
+                cursorColor = Brand600
+            ),
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Search,
+                capitalization = KeyboardCapitalization.Words
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    keyboardController?.hide()
+                    onSearchAction()
+                }
+            )
+        )
+
+        AnimatedVisibility(
+            visible = isFocused && query.isEmpty() && recentSearches.isNotEmpty(),
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Slate100),
+                shadowElevation = 2.dp
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "Recent Searches",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate500,
+                        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                    )
+                    recentSearches.forEach { search ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onRecentSearchClick(search) }
+                                .padding(vertical = 8.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.History, null, modifier = Modifier.size(16.dp), tint = Slate400)
+                            Spacer(Modifier.width(12.dp))
+                            Text(search, fontSize = 14.sp, color = Slate700)
+                        }
+                    }
+                }
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategorySelector(
+    categories: List<String>,
+    activeCat: String,
+    onCategorySelected: (String) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(categories) { category ->
+            val isSelected = category == activeCat
+            Surface(
+                onClick = { onCategorySelected(category) },
+                shape = RoundedCornerShape(12.dp),
+                color = if (isSelected) Brand600 else Color.White,
+                border = BorderStroke(1.dp, if (isSelected) Brand600 else Slate200)
+            ) {
+                Text(
+                    text = category,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    color = if (isSelected) Color.White else Slate600,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun VendorStats(
+    orderCount: Int = 0,
+    lowStockCount: Int = 0,
+    totalRevenue: Double = 0.0,
+    rating: Double = 0.0,
+    onClick: () -> Unit = {}
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .background(Brand600, RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
+            .padding(24.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text("Net Earnings (After Commission)", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Text("KSh ${String.format(Locale.US, "%,.0f", totalRevenue)}", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                }
+                Surface(
+                    color = Color.White.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.TrendingUp, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Analytics", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+            
+            Spacer(Modifier.height(24.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                InventoryHealthCard(
+                    label = "Active Orders",
+                    value = orderCount.toString(),
+                    bgColor = Color.White.copy(alpha = 0.15f),
+                    iconColor = Color.White,
+                    icon = Icons.Default.Inventory,
+                    modifier = Modifier.weight(1f),
+                    textColor = Color.White,
+                    labelColor = Color.White.copy(alpha = 0.7f)
+                )
+                InventoryHealthCard(
+                    label = "Low Stock",
+                    value = lowStockCount.toString(),
+                    bgColor = if (lowStockCount > 0) Color(0xFFFFEDD5).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.15f),
+                    iconColor = if (lowStockCount > 0) Color(0xFFEA580C) else Color.White,
+                    icon = Icons.Default.Warning,
+                    modifier = Modifier.weight(1f),
+                    textColor = Color.White,
+                    labelColor = Color.White.copy(alpha = 0.7f)
+                )
+                InventoryHealthCard(
+                    label = "Rating",
+                    value = if (rating > 0) String.format("%.1f", rating) else "4.8",
+                    bgColor = Color.White.copy(alpha = 0.15f),
+                    iconColor = Color.White,
+                    icon = Icons.Default.Star,
+                    modifier = Modifier.weight(1f),
+                    textColor = Color.White,
+                    labelColor = Color.White.copy(alpha = 0.7f)
+                )
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LowStockSection(
+    products: List<Product>,
+    onProductClick: (Product) -> Unit,
+    onManageInventory: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        SectionHeader(
+            title = "Low Stock Alert",
+            subtitle = "Restock these items soon",
+            onSeeAllClick = onManageInventory
+        )
+        
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(vertical = 8.dp)
+        ) {
+            items(products) { product ->
+                LowStockCard(product = product, onClick = { onProductClick(product) })
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LowStockCard(product: Product, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .width(220.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFFFF7ED),
+        border = BorderStroke(1.dp, Color(0xFFFFEDD5))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color.White, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (product.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = product.images.first(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(Icons.Default.Inventory, contentDescription = null, tint = Color(0xFFEA580C))
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    product.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF9A3412),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${product.stockCount} items left",
+                    fontSize = 12.sp,
+                    color = Color(0xFFEA580C),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VendorAnalyticsPreview(
+    totalRevenue: Double,
+    orderCount: Int,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Slate100),
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Brand50, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.TrendingUp, null, tint = Brand600)
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Sales Performance", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                Text("View detailed insights and reports", fontSize = 12.sp, color = Slate500)
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = Slate300)
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun AdminStats(
+    userCount: Int = 0,
+    pendingVendors: Int = 0,
+    totalRevenue: Double = 0.0,
+    onManageUsers: () -> Unit = {},
+    onInventoryClick: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .background(Slate900, RoundedCornerShape(24.dp))
+            .clickable { onInventoryClick() }
+            .padding(24.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("System Overview", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                Text("Active System Health", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+            
+            Surface(
+                color = Brand600.copy(alpha = 0.15f),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, Brand600.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(Brand500, CircleShape)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "LIVE",
+                        color = Brand500,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+        
+        Spacer(Modifier.height(24.dp))
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            StatItem("Total Users", userCount.toString(), Icons.Default.People, modifier = Modifier.clickable { onManageUsers() })
+            StatItem("Pending Vendors", pendingVendors.toString(), Icons.Default.PendingActions)
+            StatItem("Revenue (M)", String.format(java.util.Locale.US, "%.1f", totalRevenue / 1_000_000.0), Icons.Default.Payments)
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminPendingTasks(
+    pendingVendors: List<Map<String, Any>>,
+    lowStockProducts: List<Product>,
+    pendingBanners: List<Map<String, Any>> = emptyList(),
+    onApproveVendor: (String) -> Unit,
+    onApproveBanner: (String) -> Unit = {},
+    onNavigateToInventory: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Pending Banner Approvals
+        pendingBanners.take(3).forEach { banner ->
+            val title = banner["title"] as? String ?: "New Banner"
+            val bannerId = banner["id"] as? String ?: ""
+            val vendorName = banner["vendor_name"] as? String ?: "Vendor"
+            
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Success50,
+                border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color(0xFFDCFCE7), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Campaign, contentDescription = null, tint = Success600)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Banner Request", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
+                        Text("$title by $vendorName", fontSize = 12.sp, color = Success600)
+                    }
+                    TextButton(onClick = { onApproveBanner(bannerId) }) {
+                        Text("Approve", color = Success600, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Pending Vendor Approvals
+        pendingVendors.take(3).forEach { vendor ->
+            val vendorName = vendor["full_name"] as? String ?: "New Vendor"
+            val vendorId = vendor["id"] as? String ?: ""
+            val avatarUrl = vendor["avatar_url"] as? String
+            
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFFFFBEB),
+                border = BorderStroke(1.dp, Color(0xFFFDE68A))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color(0xFFFEF3C7), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!avatarUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.Store, contentDescription = null, tint = Color(0xFFB45309))
+                        }
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Vendor Approval", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                        Text(vendorName, fontSize = 12.sp, color = Color(0xFFB45309))
+                    }
+                    TextButton(onClick = { onApproveVendor(vendorId) }) {
+                        Text("Approve", color = Color(0xFFB45309), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Low Stock Alerts
+        lowStockProducts.take(3).forEach { product ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFFEF2F2),
+                border = BorderStroke(1.dp, Color(0xFFFECACA))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color(0xFFFEE2E2), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFB91C1C))
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Low Stock Alert", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
+                        Text("${product.name} (${product.stockCount} left)", fontSize = 12.sp, color = Color(0xFFB91C1C))
+                    }
+                    IconButton(onClick = onNavigateToInventory) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFFB91C1C))
+                    }
+                }
+            }
+        }
+        
+        if (pendingVendors.isEmpty() && lowStockProducts.isEmpty() && pendingBanners.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Slate50,
+                border = BorderStroke(1.dp, Slate100)
+            ) {
+                Text(
+                    "All caught up! No pending tasks.",
+                    modifier = Modifier.padding(24.dp),
+                    textAlign = TextAlign.Center,
+                    color = Slate500,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminActivityList(
+    logs: List<Map<String, Any>> = emptyList(),
+    onSeeAllOrders: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (logs.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, Slate100)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.History, null, tint = Slate300, modifier = Modifier.size(32.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("No recent activity found", color = Slate500, fontSize = 14.sp)
+                }
+            }
+        } else {
+            logs.take(5).forEach { log ->
+                val action = log["action"] as? String ?: "System Action"
+                val details = log["details"] as? String ?: ""
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Slate100)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Brand50, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = when {
+                                    action.contains("Login", true) -> Icons.Default.Login
+                                    action.contains("Order", true) -> Icons.Default.ShoppingCart
+                                    action.contains("Vendor", true) -> Icons.Default.Store
+                                    else -> Icons.Default.History
+                                },
+                                contentDescription = null,
+                                tint = Brand600,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(action, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                                Text(
+                                    text = com.example.nursewearconnect.utils.AppUtils.timeAgo(log["created_at"] as? String),
+                                    fontSize = 11.sp,
+                                    color = Slate400
+                                )
+                            }
+                            Text(details, fontSize = 12.sp, color = Slate500, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MarketingOverview(
+    coupons: List<Map<String, Any>>,
+    banners: List<Map<String, Any>>,
+    onCouponClick: () -> Unit,
+    onBannerClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Coupons Card
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onCouponClick() },
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Slate100)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(Brand50, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.ConfirmationNumber, null, tint = Brand600, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(coupons.count { it["active"] == true }.toString(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    Text("Active Coupons", fontSize = 12.sp, color = Slate500)
+                }
+            }
+
+            // Banners Card
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onBannerClick() },
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Slate100)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(Color(0xFFECFDF5), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Image, null, tint = Color(0xFF059669), modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(banners.count { it["status"] == "approved" && it["active"] == true }.toString(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    Text("Live Banners", fontSize = 12.sp, color = Slate500)
+                }
+            }
+        }
+
+        if (banners.isNotEmpty()) {
+            Text("Featured Promo", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate400, modifier = Modifier.padding(top = 4.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .clickable { onBannerClick() },
+                shape = RoundedCornerShape(16.dp),
+                color = Slate100
+            ) {
+                AsyncImage(
+                    model = banners.firstOrNull()?.get("image_url")?.toString(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatItem(label: String, value: String, icon: ImageVector, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+        }
+        Text(value, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SizeQuizBottomSheet(
+    onDismiss: () -> Unit,
+    onComplete: (String) -> Unit,
+    gender: String = "Unisex"
+) {
+    var step by remember { mutableStateOf(1) }
+    var height by remember { mutableStateOf("") }
+    var weight by remember { mutableStateOf("") }
+    var fitPreference by remember { mutableStateOf("Regular") }
+    var chestCircumference by remember { mutableStateOf("") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Step $step of ${if (gender == "Female") 4 else 3}",
+                style = MaterialTheme.typography.labelMedium,
+                color = Brand600
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            LinearProgressIndicator(
+                progress = { step / (if (gender == "Female") 4f else 3f) },
+                modifier = Modifier.fillMaxWidth().height(4.dp),
+                color = Brand600,
+                trackColor = Brand100
+            )
+            
+            Spacer(Modifier.height(24.dp))
+            
+            when (step) {
+                1 -> {
+                    Text("What is your height?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Helps us determine the length of your scrubs", fontSize = 14.sp, color = Slate500)
+                    Spacer(Modifier.height(24.dp))
+                    OutlinedTextField(
+                        value = height,
+                        onValueChange = { height = it },
+                        label = { Text("Height (cm)") },
+                        placeholder = { Text("e.g. 175") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+                2 -> {
+                    Text("What is your weight?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Weight helps us estimate your body volume", fontSize = 14.sp, color = Slate500)
+                    Spacer(Modifier.height(24.dp))
+                    OutlinedTextField(
+                        value = weight,
+                        onValueChange = { weight = it },
+                        label = { Text("Weight (kg)") },
+                        placeholder = { Text("e.g. 70") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+                3 -> {
+                    if (gender == "Female") {
+                        Text("Chest/Bust measurement?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Crucial for a comfortable fit in feminine cuts", fontSize = 14.sp, color = Slate500)
+                        Spacer(Modifier.height(24.dp))
+                        OutlinedTextField(
+                            value = chestCircumference,
+                            onValueChange = { chestCircumference = it },
+                            label = { Text("Chest (cm)") },
+                            placeholder = { Text("e.g. 90") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    } else {
+                        FitPreferenceStep(fitPreference) { fitPreference = it }
+                    }
+                }
+                4 -> {
+                    FitPreferenceStep(fitPreference) { fitPreference = it }
+                }
+            }
+            
+            Spacer(Modifier.height(32.dp))
+            
+            val isNextEnabled = when(step) {
+                1 -> height.isNotEmpty()
+                2 -> weight.isNotEmpty()
+                3 -> if (gender == "Female") chestCircumference.isNotEmpty() else true
+                else -> true
+            }
+
+            Button(
+                onClick = {
+                    val maxSteps = if (gender == "Female") 4 else 3
+                    if (step < maxSteps) {
+                        step++
+                    } else {
+                        // AI-Based Recommendation Logic (Enterprise Implementation)
+                        val h = height.toIntOrNull() ?: 170
+                        val w = weight.toIntOrNull() ?: 70
+                        val bmi = w / ((h / 100f) * (h / 100f))
+                        
+                        val recommendedSize = when {
+                            bmi < 18.5 -> "XS"
+                            bmi < 22 -> "S"
+                            bmi < 26 -> "M"
+                            bmi < 30 -> "L"
+                            bmi < 35 -> "XL"
+                            else -> "XXL"
+                        }
+                        
+                        // Adjust for fit preference
+                        val finalSize = if (fitPreference == "Slim") {
+                            // Suggest one size down if not XS
+                            if (recommendedSize == "S") "XS" else recommendedSize
+                        } else if (fitPreference == "Loose") {
+                            // Suggest one size up if not XXL
+                            if (recommendedSize == "L") "XL" else recommendedSize
+                        } else recommendedSize
+
+                        onComplete(finalSize)
+                    }
+                },
+                enabled = isNextEnabled,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600)
+            ) {
+                val maxSteps = if (gender == "Female") 4 else 3
+                Text(if (step < maxSteps) "Next" else "Find My Size")
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FitPreferenceStep(selected: String, onSelect: (String) -> Unit) {
+    Text("Preferred Fit?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text("How do you like your scrubs to feel?", fontSize = 14.sp, color = Slate500)
+    Spacer(Modifier.height(24.dp))
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        listOf("Slim", "Regular", "Loose").forEach { fit ->
+            val isSelected = selected == fit
+            Surface(
+                onClick = { onSelect(fit) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                color = if (isSelected) Brand600 else Slate50,
+                border = BorderStroke(1.dp, if (isSelected) Brand600 else Slate200)
+            ) {
+                Box(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        fit,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) Color.White else Slate700
+                    )
+                }
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun SizeFinderCard(onStartQuiz: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Brand100),
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Brand50, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Straighten, null, tint = Brand600, modifier = Modifier.size(28.dp))
+            }
+            
+            Spacer(Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Find Your Perfect Fit", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                Text("Take our 30-second size quiz", fontSize = 12.sp, color = Slate500)
+            }
+            
+            Button(
+                onClick = onStartQuiz,
+                colors = ButtonDefaults.buttonColors(containerColor = Brand600),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("Start", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HeroBanner(
+    featuredProduct: Product?,
+    banners: List<Map<String, Any>> = emptyList(),
+    userRole: String = "user",
+    onShopNowClick: (Map<String, Any>?) -> Unit,
+    onActionLinkClick: (String) -> Unit = {},
+    onBannerImpression: (String) -> Unit = {},
+    onBannerClick: (String) -> Unit = {}
+) {
+    // Logic: Users only see 'approved' & 'active'.
+    val activeBanners = remember(banners, userRole) {
+        if (userRole == "admin" || userRole == "vendor") {
+            banners.filter { it["active"] == true }
+        } else {
+            banners.filter { (it["status"] == "approved") && (it["active"] == true) }
+        }
+    }
+    
+    val pagerState = rememberPagerState(pageCount = { 
+        if (activeBanners.isEmpty()) 1 else activeBanners.size 
+    })
+
+    // Tracking impressions
+    LaunchedEffect(pagerState.currentPage, activeBanners) {
+        if (activeBanners.isNotEmpty()) {
+            val bannerId = activeBanners.getOrNull(pagerState.currentPage)?.get("id") as? String
+            if (bannerId != null) {
+                onBannerImpression(bannerId)
+            }
+        }
+    }
+    
+    // Auto-swipe logic: 20 seconds as requested
+    LaunchedEffect(activeBanners.size) {
+        if (activeBanners.size > 1) {
+            while (true) {
+                delay(20000L)
+                val nextPage = (pagerState.currentPage + 1) % activeBanners.size
+                pagerState.animateScrollToPage(
+                    page = nextPage,
+                    animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
+                )
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .height(220.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Brand600)
+    ) {
+        if (activeBanners.isNotEmpty()) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val banner = activeBanners[page]
+                val title = banner["title"] as? String ?: "Premium Nursing Wear"
+                val subtitle = banner["subtitle"] as? String ?: "Elevate your shift with comfort"
+                val imageUrl = banner["image_url"] as? String
+                val bannerId = banner["id"] as? String
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            // Creative transition animation
+                            val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                            val fraction = 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f)
+                            
+                            // Zoom effect
+                            scaleX = 1f + (fraction * 0.05f)
+                            scaleY = 1f + (fraction * 0.05f)
+                            
+                            // Subtle parallax/alpha
+                            alpha = fraction.coerceAtLeast(0.5f)
+                        }
+                ) {
+                    if (imageUrl != null) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Decorative fallback if no image
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            drawCircle(color = Color.White.copy(alpha = 0.1f), radius = 120.dp.toPx(), center = androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.3f))
+                        }
+                    }
+                    
+                    // Artistic Gradient Overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.3f),
+                                        Color.Black.copy(alpha = 0.7f)
+                                    )
+                                )
+                            )
+                    )
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Surface(
+                            color = Brand500.copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "FEATURED",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            title,
+                            color = Color.White,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            lineHeight = 30.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            subtitle,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        
+                        val isShopper = userRole == "student" || userRole == "professional"
+                        
+                        // "Shop Now" Button with Glassmorphism-lite design
+                        Surface(
+                            onClick = { 
+                                if (bannerId != null) onBannerClick(bannerId)
+
+                                val actionLink = banner["action_link"] as? String
+                                if (actionLink != null) {
+                                    onActionLinkClick(actionLink)
+                                } else {
+                                    onShopNowClick(banner) 
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isShopper) Color.White else Color.White.copy(alpha = 0.2f),
+                            border = if (!isShopper) BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)) else null,
+                            shadowElevation = if (isShopper) 4.dp else 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    if (isShopper) "Shop Now" else "Preview View", 
+                                    color = if (isShopper) Brand700 else Color.White, 
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 14.sp
+                                )
+                                if (isShopper) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowForward, 
+                                        contentDescription = null, 
+                                        tint = Brand700, 
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                } else {
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Visibility, 
+                                        contentDescription = null, 
+                                        tint = Color.White, 
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Modern Pager Indicators
+            if (activeBanners.size > 1) {
+                Row(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    repeat(activeBanners.size) { iteration ->
+                        val active = pagerState.currentPage == iteration
+                        val width by animateDpAsState(targetValue = if (active) 24.dp else 8.dp)
+                        val color = if (active) Color.White else Color.White.copy(alpha = 0.4f)
+                        
+                        Box(
+                            modifier = Modifier
+                                .height(6.dp)
+                                .width(width)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                    }
+                }
+            }
+        } else {
+            // Default Placeholder if no banners are available
+            Box(modifier = Modifier.fillMaxSize()) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(color = Color.White.copy(alpha = 0.1f), radius = 100.dp.toPx(), center = androidx.compose.ui.geometry.Offset(size.width * 0.9f, size.height * 0.2f))
+                    drawCircle(color = Color.White.copy(alpha = 0.05f), radius = 150.dp.toPx(), center = androidx.compose.ui.geometry.Offset(size.width * 0.1f, size.height * 0.8f))
+                }
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    Text(
+                        "Welcome to NurseWear",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        "Discover premium scrubs and more",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 14.sp
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = { onShopNowClick(null) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        val isShopper = userRole == "student" || userRole == "professional"
+                        Text(if (isShopper) "Start Shopping" else "Explore App", color = Brand700, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun QuickActions(
+    userRole: String,
+    onQuickReorderClick: () -> Unit,
+    onFavoritesClick: () -> Unit,
+    onVendorAnalyticsClick: () -> Unit = {},
+    onUserLogsClick: () -> Unit = {},
+    onAdminUsersClick: () -> Unit = {},
+    onAdminVendorsClick: () -> Unit = {},
+    onAdminMarketingClick: () -> Unit = {},
+    onReportsClick: () -> Unit = {},
+    onVendorCatalogClick: () -> Unit = {}
+) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (userRole == "vendor") {
+            QuickActionCard(
+                title = "Analytics",
+                icon = Icons.Default.BarChart,
+                bgColor = Brand50,
+                iconColor = Brand600,
+                modifier = Modifier.width(100.dp),
+                onClick = onVendorAnalyticsClick
+            )
+            QuickActionCard(
+                title = "Inventory",
+                icon = Icons.Default.Inventory2,
+                bgColor = Brand50,
+                iconColor = Brand600,
+                modifier = Modifier.width(100.dp),
+                onClick = onFavoritesClick
+            )
+            QuickActionCard(
+                title = "Shop Preview",
+                icon = Icons.Default.Visibility,
+                bgColor = Brand50,
+                iconColor = Brand600,
+                modifier = Modifier.width(100.dp),
+                onClick = onVendorCatalogClick
+            )
+            QuickActionCard(
+                title = "Marketing",
+                icon = Icons.Default.Campaign,
+                bgColor = Brand50,
+                iconColor = Brand600,
+                modifier = Modifier.width(100.dp),
+                onClick = onAdminMarketingClick
+            )
+            QuickActionCard(
+                title = "Messages",
+                icon = Icons.Default.Message,
+                bgColor = Brand50,
+                iconColor = Brand600,
+                modifier = Modifier.width(100.dp),
+                onClick = onQuickReorderClick
+            )
+        } else if (userRole == "admin") {
+            QuickActionCard(
+                title = "Users",
+                icon = Icons.Default.People,
+                bgColor = Color(0xFFEFF6FF),
+                iconColor = Color(0xFF3B82F6),
+                modifier = Modifier.width(100.dp),
+                onClick = onAdminUsersClick
+            )
+            QuickActionCard(
+                title = "Vendors",
+                icon = Icons.Default.Store,
+                bgColor = Color(0xFFF0FDF4),
+                iconColor = Color(0xFF22C55E),
+                modifier = Modifier.width(100.dp),
+                onClick = onAdminVendorsClick
+            )
+            QuickActionCard(
+                title = "Marketing",
+                icon = Icons.Default.Campaign,
+                bgColor = Color(0xFFFEF3C7),
+                iconColor = Color(0xFFD97706),
+                modifier = Modifier.width(100.dp),
+                onClick = onAdminMarketingClick
+            )
+            QuickActionCard(
+                title = "Reports",
+                icon = Icons.Default.BarChart,
+                bgColor = Color(0xFFF5F3FF),
+                iconColor = Color(0xFF8B5CF6),
+                modifier = Modifier.width(100.dp),
+                onClick = onReportsClick
+            )
+            QuickActionCard(
+                title = "Logs",
+                icon = Icons.Default.History,
+                bgColor = Color(0xFFF3F4F6),
+                iconColor = Color(0xFF4B5563),
+                modifier = Modifier.width(100.dp),
+                onClick = onUserLogsClick
+            )
+        } else {
+            QuickActionCard(
+                title = "Favorites",
+                icon = Icons.Default.Favorite,
+                bgColor = Color(0xFFFDF2F8),
+                iconColor = Color(0xFFF472B6),
+                modifier = Modifier.weight(1f),
+                onClick = onFavoritesClick
+            )
+            QuickActionCard(
+                title = "Quick Reorder",
+                icon = Icons.Default.Autorenew,
+                bgColor = Color(0xFFEFF6FF),
+                iconColor = Color(0xFF60A5FA),
+                modifier = Modifier.weight(1f),
+                onClick = onQuickReorderClick
+            )
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickActionCard(
+    title: String,
+    icon: ImageVector,
+    bgColor: Color,
+    iconColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(100.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Slate100),
+        shadowElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(bgColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Slate800)
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(
+    title: String,
+    subtitle: String,
+    onSeeAllClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Column {
+            Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900)
+            Text(subtitle, fontSize = 12.sp, color = Slate500)
+        }
+        TextButton(onClick = onSeeAllClick) {
+            Text("See All", color = Brand600, fontWeight = FontWeight.Bold)
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NewArrivalsRow(
+    products: List<Product>,
+    onProductClick: (Product) -> Unit,
+    onAddToCart: (Product) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(vertical = 12.dp)
+    ) {
+        items(products) { product ->
+            NewArrivalCard(
+                product = product,
+                onClick = { onProductClick(product) },
+                onAddToCart = { onAddToCart(product) }
+            )
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NewArrivalCard(
+    product: Product,
+    onClick: () -> Unit,
+    onAddToCart: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .width(160.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Slate100),
+        shadowElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(Slate50, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (product.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = product.images.first(),
+                        contentDescription = product.name,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Brand50, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when(product.category) {
+                                "Equipment" -> Icons.Default.MedicalServices
+                                "Theatre Shoes" -> Icons.Default.IceSkating
+                                else -> Icons.Default.Checkroom
+                            },
+                            contentDescription = null,
+                            tint = Brand600,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                
+                if (product.tag != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(99.dp),
+                        color = Brand500
+                    ) {
+                        Text(
+                            product.tag,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+            
+            Spacer(Modifier.height(8.dp))
+            
+            Text(
+                product.name,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Slate900,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            Text(
+                "${product.gender} â€¢ ${product.category}",
+                fontSize = 10.sp,
+                color = Slate500,
+                fontWeight = FontWeight.Medium
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "KSh ${product.priceKes}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Brand600
+                )
+                IconButton(
+                    onClick = { if (product.inStock) onAddToCart() },
+                    modifier = Modifier.size(28.dp),
+                    enabled = product.inStock
+                ) {
+                    Icon(
+                        imageVector = if (product.inStock) Icons.Default.AddCircle else Icons.Default.RemoveCircleOutline,
+                        contentDescription = "Add",
+                        tint = if (product.inStock) Slate900 else Slate300,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun VendorRecentOrdersList(
+    orders: List<Map<String, Any>>,
+    viewModel: HomeViewModel,
+    onNavigateToOrders: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (orders.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Slate50,
+                border = BorderStroke(1.dp, Slate100)
+            ) {
+                Text(
+                    "No recent orders yet.",
+                    modifier = Modifier.padding(24.dp),
+                    textAlign = TextAlign.Center,
+                    color = Slate500,
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            orders.take(3).forEach { map ->
+                val order = com.example.nursewearconnect.ui.screens.VendorOrder(
+                    id = (map["id"] as? String ?: "").takeLast(6).uppercase(),
+                    fullId = map["id"] as? String ?: "",
+                    customerName = (map["profiles"] as? Map<*, *>)?.get("full_name") as? String ?: "Customer",
+                    itemName = map["product_name"] as? String ?: "Product",
+                    quantity = (map["quantity"] as? Number)?.toInt() ?: 1,
+                    size = map["size"] as? String ?: "M",
+                    total = (map["total_amount"] as? Number)?.toInt() ?: 0,
+                    date = (map["created_at"] as? String)?.split("T")?.firstOrNull() ?: "",
+                    status = map["status"] as? String ?: "Pending"
+                )
+                
+                com.example.nursewearconnect.ui.screens.VendorOrderCard(
+                    order = order,
+                    onAccept = { viewModel.updateVendorOrderStatus(order.fullId, "Processing") },
+                    onShip = { viewModel.updateVendorOrderStatus(order.fullId, "Shipped") },
+                    onComplete = { viewModel.updateVendorOrderStatus(order.fullId, "Delivered") },
+                    onCancel = { viewModel.updateVendorOrderStatus(order.fullId, "Cancelled") },
+                    onClick = onNavigateToOrders
+                )
+            }
+        }
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductGrid(
+    products: List<Product>,
+    favoriteProductIds: Set<String> = emptySet(),
+    onFavoriteToggle: (Product) -> Unit = {},
+    onAddToCart: (Product) -> Unit = {},
+    onProductClick: (Product) -> Unit = {},
+    isLoading: Boolean = false
+) {
+    BoxWithConstraints(
+        modifier = Modifier.padding(horizontal = 24.dp)
+    ) {
+        val columns = when {
+            this.maxWidth < 600.dp -> 2
+            this.maxWidth < 900.dp -> 3
+            else -> 4
+        }
+        
+        if (isLoading && products.isEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                repeat(3) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        repeat(columns) {
+                            ShimmerPlaceholder(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(240.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            val chunks = products.chunked(columns)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                chunks.forEach { rowProducts ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        rowProducts.forEach { product ->
+                            ProductCard(
+                                product = product,
+                                isFavorite = favoriteProductIds.contains(product.id),
+                                modifier = Modifier.weight(1f),
+                                onFavoriteClick = { onFavoriteToggle(product) },
+                                onAddToCart = { onAddToCart(product) },
+                                onClick = { onProductClick(product) }
+                            )
+                        }
+                        // Fill empty spaces in the row to maintain alignment
+                        if (rowProducts.size < columns) {
+                            repeat(columns - rowProducts.size) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductCard(
+    product: Product, 
+    isFavorite: Boolean = false,
+    modifier: Modifier = Modifier,
+    isPreviewMode: Boolean = false,
+    onFavoriteClick: () -> Unit = {},
+    onAddToCart: () -> Unit = {},
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Slate100),
+        shadowElevation = 4.dp
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(Slate50, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (product.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = product.images.first(),
+                        contentDescription = product.name,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Brand50, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when(product.category) {
+                                "Equipment" -> Icons.Default.MedicalServices
+                                "Theatre Shoes" -> Icons.Default.IceSkating
+                                else -> Icons.Default.Checkroom
+                            },
+                            contentDescription = null,
+                            tint = Brand600,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                
+                if (product.tag != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp),
+                        shape = RoundedCornerShape(99.dp),
+                        color = Brand500
+                    ) {
+                        Text(
+                            product.tag,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+                
+                if (!isPreviewMode) {
+                    Surface(
+                        onClick = onFavoriteClick,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                            .size(32.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.8f)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .size(14.dp),
+                            tint = if (isFavorite) Color(0xFFF43F5E) else Slate300
+                        )
+                    }
+                }
+                
+                if (!product.inStock) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = Color.Black.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            "OUT OF STOCK",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(Modifier.height(12.dp))
+            
+            Text(
+                "${product.gender} â€¢ ${product.category}".uppercase(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Brand600,
+                letterSpacing = 0.5.sp
+            )
+            
+            Text(
+                product.name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Slate900,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 16.sp
+            )
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Icon(Icons.Default.Star, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(10.dp))
+                Text(
+                    " ${product.rating} ",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+                Text(
+                    "(${product.reviewsCount})",
+                    fontSize = 10.sp,
+                    color = Slate500
+                )
+                
+                if (product.inStock && product.stockCount in 1..Constants.LOW_STOCK_THRESHOLD) {
+                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            "ONLY ${product.stockCount} LEFT!",
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
+                }
+            }
+            
+            Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                val attrs = if (product.category == "Equipment") {
+                    listOf("Professional", "Durable")
+                } else if (product.category == "Theatre Shoes") {
+                    listOf("Non-slip", "Waterproof")
+                } else {
+                    listOf("4-Way Stretch", "Antimicrobial")
+                }
+                attrs.take(2).forEach { attr ->
+                    Surface(
+                        shape = RoundedCornerShape(4.dp), 
+                        color = if (attr == "Antimicrobial" || attr == "Professional" || attr == "Non-slip") Brand50 else Slate100
+                    ) {
+                        Text(
+                            attr, 
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp), 
+                            fontSize = 8.sp, 
+                            fontWeight = FontWeight.Medium, 
+                            color = if (attr == "Antimicrobial" || attr == "Professional" || attr == "Non-slip") Brand600 else Slate600
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                }
+            }
+            
+            Spacer(Modifier.height(4.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "KSh ${product.priceKes}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Brand600
+                    )
+                    Text(
+                        "Pro: KSh ${(product.priceKes * 0.9).toInt()}",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF059669)
+                    )
+                }
+                if (!isPreviewMode) {
+                    IconButton(
+                        onClick = { if (product.inStock) onAddToCart() },
+                        modifier = Modifier.size(32.dp),
+                        enabled = product.inStock
+                    ) {
+                        Icon(
+                            imageVector = if (product.inStock) Icons.Default.AddCircle else Icons.Default.RemoveCircleOutline,
+                            contentDescription = "Add",
+                            tint = if (product.inStock) Slate900 else Slate300,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // SnackBar for success messages
+        uiState.successMessage?.let { message ->
+            LaunchedEffect(message) {
+                // Clear success message after showing
+                delay(3000)
+                viewModel.clearSuccessMessage()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+            ) {
+                Surface(
+                    color = Color(0xFF065F46),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+                        Spacer(Modifier.width(12.dp))
+                        Text(message, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
