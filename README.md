@@ -1,10 +1,5 @@
 ## Developer Information
-
-Student: Lynne Harriet Vion
-Institution: University of Eastern Africa, Baraton
-Course: INSY 492 – Senior Project
-Supervisor: Mr. Felix Chepsiror
-Instructor: Mr. Omari Dickson
+sainska
 
 # NurseWear Connect (NWC)
 
